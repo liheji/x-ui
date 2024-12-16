@@ -18,6 +18,7 @@ import (
 	"runtime"
 	"time"
 	"x-ui/logger"
+	"x-ui/util/common"
 	"x-ui/util/sys"
 	"x-ui/xray"
 )
@@ -64,8 +65,13 @@ type Status struct {
 	} `json:"netTraffic"`
 }
 
-type Release struct {
-	TagName string `json:"tag_name"`
+type Tag struct {
+	Name string `json:"name"`
+}
+
+type Version struct {
+	Name       string `json:"name"`
+	Prerelease bool   `json:"prerelease"`
 }
 
 type ServerService struct {
@@ -170,8 +176,8 @@ func (s *ServerService) GetStatus(lastStatus *Status) *Status {
 	return status
 }
 
-func (s *ServerService) GetXrayVersions() ([]string, error) {
-	url := "https://api.github.com/repos/XTLS/Xray-core/releases"
+func (s *ServerService) GetXrayVersions() ([]Version, error) {
+	url := "https://api.github.com/repos/XTLS/Xray-core/tags?per_page=100&page=1"
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -185,14 +191,23 @@ func (s *ServerService) GetXrayVersions() ([]string, error) {
 		return nil, err
 	}
 
-	releases := make([]Release, 0)
-	err = json.Unmarshal(buffer.Bytes(), &releases)
+	tags := make([]Tag, 0)
+	err = json.Unmarshal(buffer.Bytes(), &tags)
 	if err != nil {
 		return nil, err
 	}
-	versions := make([]string, 0, len(releases))
-	for _, release := range releases {
-		versions = append(versions, release.TagName)
+
+	rs := GetReleaseService()
+	versions := make([]Version, 0, len(tags))
+	for _, tag := range tags {
+		if common.CmpVersion(tag.Name, minSupportedVer) < 0 {
+			continue
+		}
+		release, err := rs.GetReleaseByTag(tag.Name)
+		if err != nil {
+			return nil, err
+		}
+		versions = append(versions, Version{Name: tag.Name, Prerelease: release.Prerelease})
 	}
 	return versions, nil
 }

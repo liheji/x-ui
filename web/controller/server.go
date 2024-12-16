@@ -15,7 +15,7 @@ type ServerController struct {
 	lastStatus        *service.Status
 	lastGetStatusTime time.Time
 
-	lastVersions        []string
+	lastVersions        []service.Version
 	lastGetVersionsTime time.Time
 }
 

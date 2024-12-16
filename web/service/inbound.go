@@ -56,8 +56,24 @@ func (s *InboundService) AddInbound(inbound *model.Inbound) error {
 	if exist {
 		return common.NewError("端口已存在:", inbound.Port)
 	}
+	if err := s.checkProtocol(inbound); err != nil {
+		return err
+	}
 	db := database.GetDB()
 	return db.Save(inbound).Error
+}
+
+func (s *InboundService) checkProtocol(inbound *model.Inbound) error {
+	if inbound.Protocol == model.Trojan {
+		selfVer, err := xray.GetXrayVersion()
+		if err != nil {
+			return err
+		}
+		if common.CmpVersion(selfVer, maxTrojanVer) >= 0 {
+			return common.NewError("Trojan is not supported in " + selfVer)
+		}
+	}
+	return nil
 }
 
 func (s *InboundService) AddInbounds(inbounds []*model.Inbound) error {
@@ -68,6 +84,9 @@ func (s *InboundService) AddInbounds(inbounds []*model.Inbound) error {
 		}
 		if exist {
 			return common.NewError("端口已存在:", inbound.Port)
+		}
+		if err := s.checkProtocol(inbound); err != nil {
+			return err
 		}
 	}
 

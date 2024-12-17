@@ -30,8 +30,8 @@ clean_dst() {
 
 # 构建项目
 build_project() {
-    echo "Building for GOOS=$GOOS GOARCH=$GOARCH..."
-    go build -o "$EXE_NAME"
+    echo "Building for CGO_ENABLED=$CGO_ENABLED GOOS=$GOOS GOARCH=$GOARCH..."
+    go build -ldflags="-s -w" -o "$EXE_NAME"
     check_error "Build failed"
 }
 

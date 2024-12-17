@@ -1,41 +1,70 @@
 #!/bin/bash
+
+# =====================
+# 环境变量与参数
+# =====================
 export GOOS=linux
-export GOARCH=${1:-amd64}
-go build -o x-main
+export GOARCH=${1:-amd64}    # 通过外部参数指定 GOARCH，默认 amd64
 
-# 设置变量
-TARGET_DIR="x-ui"
-ARCHIVE_NAME="x-ui-${GOOS}-${GOARCH}.tar.gz"
+# 项目变量
+DST_DIR="x-ui"               
+EXE_NAME="x-main"            
+ZIP_NAME="x-ui-${GOOS}-${GOARCH}.tar.gz"
 
-# 清理并创建目标文件夹
-if [ -d "$TARGET_DIR" ]; then
-    echo "Cleaning up existing $TARGET_DIR folder..."
-    rm -rf "$TARGET_DIR"
-fi
+# =====================
+# 错误检查函数
+# =====================
+check_error() {
+    if [ $? -ne 0 ]; then
+        echo "Error: $1"
+        exit 1
+    fi
+}
 
-echo "Creating folder: $TARGET_DIR"
-mkdir -p "$TARGET_DIR"
+# 清理目标目录
+clean_dst() {
+    [ -d "$DST_DIR" ] && rm -rf "$DST_DIR"
+    mkdir -p "$DST_DIR/bin/"
+}
 
-# 复制文件到目标文件夹
-cp x-main "$TARGET_DIR/x-ui"
-cp x-ui.sh "$TARGET_DIR/"
-cp x-ui.service "$TARGET_DIR/"
-cp -rf  bin "$TARGET_DIR/"
+# 构建项目
+build_project() {
+    echo "Building for GOOS=$GOOS GOARCH=$GOARCH..."
+    go build -o "$EXE_NAME"
+    check_error "Build failed"
+}
+
+# 复制文件
+copy_files() {
+    cp "$EXE_NAME" "$DST_DIR/x-ui"
+    cp "x-ui.sh" "x-ui.service" "$DST_DIR/"
+    
+    # 复制 bin 目录内容
+    [ -f "bin/xray-$GOOS-$GOARCH" ] && cp "bin/xray-$GOOS-$GOARCH" "$DST_DIR/bin/"
+    compgen -G "bin/*.dat" > /dev/null && cp bin/*.dat "$DST_DIR/bin/"
+}
 
 # 打包目标文件夹
-echo "Packing folder: $ARCHIVE_NAME"
-tar -czf "$ARCHIVE_NAME" "$TARGET_DIR"
+pack_files() {
+    echo "Packing folder to: $ZIP_NAME"
+    tar -czf "$ZIP_NAME" "$DST_DIR"
+    check_error "Packing failed"
+}
 
-if [ $? -eq 0 ]; then
-    echo "Successfully packing: $ARCHIVE_NAME"
-else
-    echo "Error creating archive!"
-    exit 1
-fi
+# 清理临时文件
+cleanup() {
+    rm -f "$EXE_NAME"
+    rm -rf "$DST_DIR"
+}
 
-# 清理文件
-echo "Cleaning up folder: $TARGET_DIR"
-rm -rf x-main
-rm -rf "$TARGET_DIR"
+# 主逻辑
+main() {
+    build_project
+    clean_dst
+    copy_files
+    pack_files
+    cleanup
+    echo "Completed successfully! Archive: $ZIP_NAME"
+}
 
-echo "completed!"
+main

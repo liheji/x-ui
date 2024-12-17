@@ -5,11 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"sync"
 	"time"
-	"x-ui/util/common"
-	"x-ui/xray"
 )
 
 var (
@@ -30,7 +27,7 @@ func GetReleaseService() *ReleaseService {
 			cacheLock: sync.Mutex{},
 			cache:     make(map[string]Release),
 		}
-		err := releaseService.loadRelease(xray.GetReleasePath())
+		err := releaseService.loadRelease()
 		if err != nil {
 			releaseService = nil
 		}
@@ -43,27 +40,37 @@ type ReleaseService struct {
 	cache     map[string]Release
 }
 
-func (r *ReleaseService) loadRelease(jsonPath string) error {
-	releaseList := make([]Release, 0)
-	// 读取json文件
-	data, err := os.ReadFile(jsonPath)
+func (r *ReleaseService) loadRelease() error {
+	r.cacheLock.Lock()
+	defer r.cacheLock.Unlock()
+	url := "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=100&page=1"
+	resp, err := http.Get(url)
 	if err != nil {
-		return common.NewError("读取 xray 版本文件失败: %v", err)
-	}
-	err = json.Unmarshal(data, &releaseList)
-	if err != nil {
-		return common.NewError("解析 xray 版本文件失败: %v", err)
+		return err
 	}
 
+	defer resp.Body.Close()
+	buffer := bytes.NewBuffer(make([]byte, 8192))
+	buffer.Reset()
+	_, err = buffer.ReadFrom(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	releaseList := make([]Release, 0)
+	err = json.Unmarshal(buffer.Bytes(), &releaseList)
+	if err != nil {
+		return err
+	}
 	for _, release := range releaseList {
-		r.cacheLock.Lock()
 		r.cache[release.TagName] = release
-		r.cacheLock.Unlock()
 	}
 	return nil
 }
 
 func (r *ReleaseService) GetReleaseByTag(tagName string) (*Release, error) {
+	r.cacheLock.Lock()
+	defer r.cacheLock.Unlock()
 	if release, ok := r.cache[tagName]; ok {
 		return &release, nil
 	}
@@ -87,10 +94,7 @@ func (r *ReleaseService) GetReleaseByTag(tagName string) (*Release, error) {
 	if err != nil {
 		return &Release{}, err
 	}
-
-	r.cacheLock.Lock()
 	r.cache[tagName] = release
-	r.cacheLock.Unlock()
 
 	return &release, nil
 }

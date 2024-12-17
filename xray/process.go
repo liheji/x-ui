@@ -43,10 +43,6 @@ func GetGeoipPath() string {
 	return "bin/geoip.dat"
 }
 
-func GetReleasePath() string {
-	return "bin/releases.json"
-}
-
 func GetXrayVersion() (string, error) {
 	cmd := exec.Command(GetBinaryPath(), "-version")
 	data, err := cmd.Output()

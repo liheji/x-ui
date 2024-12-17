@@ -19,6 +19,10 @@ const (
 	minSupportedVer = "v1.4.2"
 )
 
+func init() {
+	GetReleaseService()
+}
+
 func GetReleaseService() *ReleaseService {
 	releaseLock.Lock()
 	defer releaseLock.Unlock()

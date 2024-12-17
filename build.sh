@@ -3,6 +3,7 @@
 # =====================
 # 环境变量与参数
 # =====================
+export CGO_ENABLED=1
 export GOOS=linux
 export GOARCH=${1:-amd64}    # 通过外部参数指定 GOARCH，默认 amd64
 
